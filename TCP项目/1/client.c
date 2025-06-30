@@ -1,15 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h> 
-#include <netinet/in.h>      
-#include <pthread.h>
-#define SERVER_IP "192.168.138.60"
-// 端口号用短整形 2字节  0~65535 
-// 不建议使用10000以下的有肯呢个别占用
-#define SERVER_RORT 8848
+#include "share.h"
 int skt;
 void *myfunc(void *arg)
 {

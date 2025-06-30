@@ -48,6 +48,8 @@ void *my_func(void *arg)
 }
 int main(void)
 {
+    // 连接数据库
+    mysql_init_xxj();
     // 1、创建服务器套接字
     int skt = socket(AF_INET, SOCK_STREAM, 0);
     // 2、绑定自身IP
@@ -125,6 +127,6 @@ int main(void)
             }    
         } 
     }
-
+    mysql_close_xxj();
     return 0;
 }
