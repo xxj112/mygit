@@ -8,8 +8,10 @@
 #include <sys/socket.h>
 #include <arpa/inet.h> 
 #include <netinet/in.h>      
+#include <pthread.h>    
 #include <pthread.h>
-#include <time.h>
+#include <sys/epoll.h>
+
 #define SERVER_IP "192.168.138.60"
 // 端口号用短整形 2字节  0~65535 
 // 不建议使用10000以下的有肯呢个别占用

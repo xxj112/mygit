@@ -1,27 +1,17 @@
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h> 
-#include <netinet/in.h>      
-#include <pthread.h>
-#include <sys/epoll.h>
-
-#define SERVER_IP "192.168.138.60"
-// 端口号用短整形 2字节  0~65535 
-// 不建议使用10000以下的有肯呢个别占用
-#define SERVER_RORT 8848
+#include "share.h"
 #define BACKLOG 1024      //监听最大数量
+// msg rec_msg = {0}; // 读取的信息
+// msg sen_msg = {0}; // 发送的信息
 int sktall[BACKLOG];    //所有的套接字
 int sktcnt;             //记录当前的套接字个数
 int epfd;
-int bk[BACKLOG + 10] = {0}; //标记正在执行线程的套接字 1 表示执行   
-void *my_func(void *arg)
+int bk[BACKLOG + 10] = {0}; //标记正在执行线程的套接字 1 表示执行  
+
+void *my_func(void *arg) //现在是接受到并且返回
 {
     int fd = (int) arg;
-    char buf[64] = {0};
-    int ret = read(fd, buf, sizeof(buf));
+    msg rec_msg = {0}; // 读取的信息
+    int ret = read(fd, &rec_msg, sizeof(rec_msg));
     if(ret == 0)
     {
         printf("客户端%d下线了\n",fd);
@@ -36,15 +26,15 @@ void *my_func(void *arg)
                 break;
             }
         }
-        bk[fd] = 0;
+        bk[fd] = 0; //恢复标记
         return NULL;
     }
-    for(int i = 1; i < sktcnt; i++)
-    {
-        if(sktall[i] == fd) continue;
-        write(sktall[i], buf, sizeof(buf));
-    }
-    bk[fd] = 0;
+   
+    hand_msg(fd,rec_msg);
+    //pr_msg(rec_msg);
+   // strcpy(rec_msg.msgdata,"ww");
+  //  send_msg(rec_msg,fd);
+    bk[fd] = 0; //恢复标记
 }
 int main(void)
 {
@@ -85,9 +75,7 @@ int main(void)
     while(1)
     {
         //3、监听套接字
-      //  printf("0\n");
         ret = epoll_wait(epfd, events, sktcnt, -1);
-      //  printf("1\n");
         if(ret <= 0)
         {
             printf("监听失败\n");
@@ -127,6 +115,6 @@ int main(void)
             }    
         } 
     }
-    mysql_close_xxj();
+  //  mysql_close_xxj();
     return 0;
 }
