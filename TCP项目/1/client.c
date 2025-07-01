@@ -1,4 +1,5 @@
 #include "share.h"
+#include "cli_op.h"
 msg rec_msg = {0}; //实时接受的消息
 msg reg_msg = {0};      //注册专用信息
 msg sen_msg = {0};      //发送信息
@@ -13,8 +14,15 @@ void Register(void);
 void Login(void);    
 void one_menu(void); //一级菜单
 void two_menu(void); //二级菜单
+void threee_menu(void); //群聊界面
 void send_all(void); //群发
+void send_all_start(void); //进入群聊
+void send_all_end(void); // 退出群聊
 void Delete_account(void); // 注销账号
+void send_single(void); // 单独发送
+void lgout(void); //退出
+void msg_handle(msg now); //处理接受的消息
+
 int main(void)
 {
     //1、创建通信套接字
@@ -64,6 +72,9 @@ void one_menu(void)
         case 2: //登陆
             Login();
             break;
+        // case 2: //登陆
+        //     Login();
+        //     break;
         default:
             printf("Default case\n");
     }
@@ -72,30 +83,46 @@ void one_menu(void)
 void two_menu(void)
 {
     int num = 2;
-    printf("登陆成功");
-    printf("%s %s %s\n",my_account,my_name,my_password);
     while(1)
     {
-        printf("1. 私聊\n2. 群发\n3.退出\n4. 注销\n");
+        printf("1. 私聊\n2. 群发\n3. 退出\n4. 注销\n");
         scanf("%d",&num);
         switch (num) 
         {
             case 1: //私聊
-//                one_send();
-            //    Register();
-              //  printf("Case 1\n");
+                send_single();
                 break;
             case 2: //群发
-                send_all();
+                threee_menu();
                 break;
             case 3: //退出
+                lgout();
                 LG = 0;
                 return ;
-                break;
             case 4: //注销
                 Delete_account();
-                return ;
+                return;
+            default:
+                printf("Default case\n");
+        }
+    }
+}
+void threee_menu(void) //群聊界面
+{
+    int num = 2;
+    send_all_start();
+    while(1)
+    {
+        printf("1. 发送\n2. 退出\n");
+        scanf("%d",&num);
+        switch (num) 
+        {
+            case 1: //
+                send_all();
                 break;
+            case 2: //
+                send_all_end();
+                return;
             default:
                 printf("Default case\n");
         }
@@ -110,13 +137,37 @@ void *myfunc(void *arg) //线程负责接受消息
     {
         if(read(skt,&rec_msg, sizeof(msg)) == 0)
             break;
-        if(rec_msg.msgtype == MSG_REG) //更新注册内容防止，消息覆盖
-        {
-            reg_msg = rec_msg;
-        }
-        else
-        printf("收到内容：%s\n",rec_msg.msgdata);
+        msg_handle(rec_msg);
     }
+}
+void msg_handle(msg now)
+{
+    pr_time();
+    switch(now.msgtype)
+    {
+        case MSG_REG: //注册信息单独存储，防止刷新
+            reg_msg = now;
+            break;
+        // case MSG_LOG: //登陆
+            
+        //     break;
+        // case MSG_OUT: //退出
+            
+        //     break;
+        // case MSG_DEL: //删除
+            
+        //     break;
+        case MSG_ALL: //群发
+            printf("收到群聊的消息%s：%s\n", now.selfname, now.msgdata);
+            break;
+        case MSG_ONE: //私聊
+            printf("收到%s的消息：%s\n", now.selfname, now.msgdata);
+            break;
+        default:
+            printf("收到内容：%s\n", now.msgdata);
+            break;    
+    }
+
 }
 void Login(void)
 {
@@ -127,10 +178,11 @@ void Login(void)
     strcpy(reg_msg.password,my_password);
     strcpy(reg_msg.account,my_account);
     reg_msg.msgtype = MSG_LOG;
-    send_msg(reg_msg);
+    send_msg(reg_msg,skt);
     if(strcmp(rec_msg.msgdata,"success") != 0) //登陆失败
     {
-     //   printf("注册失败\n");
+   
+        printf("%s\n",rec_msg.msgdata);
         printf("任意键返回\n");
         getchar();
         getchar();
@@ -138,7 +190,10 @@ void Login(void)
     }
     // 登陆成功
     LG = 1;
+    
     strcpy(my_name,rec_msg.selfname);
+    printf("登陆成功");
+    printf("%s %s %s\n",my_account,my_name,my_password);
 }
 void Register(void)
 {
@@ -174,20 +229,27 @@ void Register(void)
 }
 void Delete_account(void)
 {
+    printf("请输入密码:");
+    char password[16] = {0};
+    scanf("%s",password);
+    if(strcmp(my_password, password) != 0) // 密码不对
+    {
+        printf("密码错误\n");
+        return ;
+    }
     strcpy(sen_msg.account, my_account);
     strcpy(sen_msg.password, my_password);
-   // memset(sen_msg.msgdata, 0, sizeof(sen_msg.msgdata));
-   // strcpy(sen_msg., );
     sen_msg.msgtype = MSG_DEL;
-    send_msg(sen_msg);
+    send_msg(sen_msg,skt);
     if(strcmp(rec_msg.msgdata, "注销成功") == 0)
     {
         printf("注销成功\n");
-        LG = 0;
+        LG = 0; //注销后自动退出
     }
     else 
     {
-        printf("注销失败\n");
+        printf("%s\n",rec_msg.msgdata);
+//        printf("注销失败\n");
     }
 }
 void send_all(void)
@@ -195,7 +257,42 @@ void send_all(void)
     printf("请输入发送的消息：");
     scanf("%s",sen_msg.msgdata);
     sen_msg.msgtype = MSG_ALL;
+    strcpy(sen_msg.other, "send");
     strcpy(sen_msg.account, my_account);
     strcpy(sen_msg.password, my_password);
-    send_msg(sen_msg);
+    strcpy(sen_msg.selfname, my_name);
+    send_msg(sen_msg,skt);
 }
+void send_all_start(void)
+{
+    strcpy(sen_msg.other, "start");
+    sen_msg.msgtype = MSG_ALL;
+    strcpy(sen_msg.account, my_account);
+    send_msg(sen_msg,skt);
+}
+void send_all_end(void)
+{
+    strcpy(sen_msg.other, "end");
+    sen_msg.msgtype = MSG_ALL;
+    strcpy(sen_msg.account, my_account);
+    send_msg(sen_msg,skt);
+}
+void send_single(void)
+{
+    printf("请输入目标用户：");
+    scanf("%s",sen_msg.other);
+    printf("请输入发送的消息：");
+    scanf("%s",sen_msg.msgdata);
+    sen_msg.msgtype = MSG_ONE;
+    strcpy(sen_msg.account, my_account);
+    strcpy(sen_msg.password, my_password);
+    strcpy(sen_msg.selfname, my_name);
+    send_msg(sen_msg,skt);
+}
+void lgout(void) //退出更改 fd状态
+{
+    strcpy(sen_msg.account, my_account);
+    sen_msg.msgtype = MSG_OUT;
+    send_msg(sen_msg,skt);
+}
+

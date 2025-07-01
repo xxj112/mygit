@@ -102,3 +102,40 @@ sql_user mysql_query_users(const char *account) // 根据账号 用户信息
 
   //  return bow;
 }
+void mysql_update_user_qun(const char *account, int new_qun) //根据账号 修改qun
+{
+    char buf[128] = {0};
+    snprintf(buf, sizeof(buf), "UPDATE user SET 群=%d WHERE 账号='%s';", new_qun, account);
+    int ret = mysql_query(mydb, buf);
+    if (ret != 0) {
+        fprintf(stderr, "更新用户状态失败: %s\n", mysql_error(mydb));
+        return;
+    }
+    printf("账号'%s'的用户群字段更新为%d成功\n", account, (int)new_qun);
+}
+
+char accounts[100][16] = {0}; // 存储群账号
+int max_accounts = 100; // 最大账号数量
+int get_accounts_qun(void) 
+{
+    const char *query = "SELECT `账号` FROM user WHERE `群` = 1;";
+    if (mysql_query(mydb, query)) {
+        fprintf(stderr, "查询失败: %s\n", mysql_error(mydb));
+        return -1;
+    }
+
+    MYSQL_RES *result = mysql_store_result(mydb);
+    if (!result) {
+        fprintf(stderr, "获取结果失败: %s\n", mysql_error(mydb));
+        return -1;
+    }
+
+    MYSQL_ROW row;
+    int count = 0;
+    while ((row = mysql_fetch_row(result)) && count < max_accounts) {
+        strcpy(accounts[count], row[0]);
+        count++;
+    }
+    mysql_free_result(result);
+    return count;  // 返回找到的账号数量
+}

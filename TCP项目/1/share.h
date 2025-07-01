@@ -32,6 +32,6 @@ typedef struct user_msg{
     char msgdata[64]; //发送的消息; 
     char other[16]; //别人的账号; 
 }msg;
-enum{MSG_REG=1,MSG_LOG,MSG_DEL,MSG_ONE,MSG_ALL}; //消息类型：注册、登陆、注销、私聊和群发；
+enum{MSG_REG=1,MSG_LOG,MSG_DEL,MSG_ONE,MSG_ALL,MSG_OUT}; //消息类型：注册、登陆、注销、私聊和群发；
 #endif // ! _SHARE_H_
 

@@ -11,8 +11,13 @@ void pr_msg(msg now)
     printf("msgtype = %d, account = %s, password = %s, name = %s, data = %s, other = %s\n",\
     now.msgtype, now.account, now.password, now.selfname, now.msgdata, now.other);
 }
-// 服务器处理消息的函数
-void hand_msg(int fd,msg now)
+// 打印时间
+void pr_time(void)
 {
-    //if()
+    time_t t = time(NULL);
+    struct tm *tm = localtime(&t);
+
+    printf("%04d年%02d月%02d日 %02d时%02d分%02d秒\n",
+           tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+           tm->tm_hour, tm->tm_min, tm->tm_sec);
 }

@@ -4,4 +4,6 @@
 void pr_msg(msg now);
 void send_msg(msg now,int fd);
 void hand_msg(int fd,msg now);
+void pr_time(void);
+
 #endif
