@@ -16,7 +16,7 @@
 // 端口号用短整形 2字节  0~65535 
 // 不建议使用10000以下的有肯呢个别占用
 #define SERVER_RORT 8848
-typedef struct node{
+typedef struct node{ //数据库专用
     char account[16]; //自身的账号; 
     char password[16];//自身的密码; 
     char selfname[16]; //自身的姓名；

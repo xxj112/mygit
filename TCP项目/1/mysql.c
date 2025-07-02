@@ -1,6 +1,5 @@
-
-
 #include "mysql.h"
+
 MYSQL *mydb = NULL;
 void mysql_init_xxj(void)
 {

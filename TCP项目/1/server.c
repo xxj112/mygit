@@ -30,6 +30,7 @@ void *my_func(void *arg) //现在是接受到并且返回
         return NULL;
     }
    
+    pr_msg(rec_msg);
     hand_msg(fd,rec_msg);
     //pr_msg(rec_msg);
    // strcpy(rec_msg.msgdata,"ww");
