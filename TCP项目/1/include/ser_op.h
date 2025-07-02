@@ -11,4 +11,5 @@ void delete_user(int fd,char * account);
 void send_one_user(int fd,msg now);
 void lgout_user(int fd, char * account);
 void  send_all_user(int fd, msg now);
+void file_w(msg now);
 #endif

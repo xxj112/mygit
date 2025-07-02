@@ -15,6 +15,8 @@ void pr_msg(msg now)
 // 服务器处理消息的函数
 void hand_msg(int fd,msg now)
 {
+    //服务器每次收到消息，都追加到文本文件里面
+    file_w(now);
     switch(now.msgtype)
     {
         case MSG_REG: //注册
@@ -39,27 +41,49 @@ void hand_msg(int fd,msg now)
             break;    
     }
 }
+// 将消息写入日志文件
+// 这里还没有对消息详细处理，有时间可以把消息分分类
+// 还可以增加消息删除，和查看
+void file_w(msg now)
+{
+    FILE *fp = fopen("chat_log.txt", "a"); // 以追加模式打开
+    if (fp == NULL) {
+        perror("打开日志文件失败\n");
+        return;
+    }
+    // 获取当前时间
+    time_t t = time(NULL);
+    struct tm *tm = localtime(&t);
+    // 写入时间
+    fprintf(fp, "时间：%04d年%02d月%02d日 %02d时%02d分%02d秒\n",
+            tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+            tm->tm_hour, tm->tm_min, tm->tm_sec);
+    // 写入聊天内容
+    fprintf(fp, "内容：[%s] 对 [%s] 说：%s\n\n", now.selfname, now.other, now.msgdata);
+
+    fclose(fp);
+}
 void send_all_user(int fd, msg now)
 {
     printf("send_all_user\n");
     pr_msg(now);
-    printf("1\n");
+  //  printf("1\n");
     if(strcmp(now.other, "end") == 0) // 退出群聊
     {
 
-    printf("2\n");
+    //printf("2\n");
         mysql_update_user_qun(now.account, 0);
     }
     else if(strcmp(now.other, "start") == 0) // 进入群聊
     {
 
-     printf("3\n");
+    // printf("3\n");
         mysql_update_user_qun(now.account, 1);
     }
     else  //发送消息
     {
 
-    printf("4\n");
+   // printf("4\n");
         int cnt = get_accounts_qun(); //获取所有群用户
         printf("cnt = %d", cnt);
         for(int i = 0; i < cnt; i++)
@@ -74,7 +98,7 @@ void send_all_user(int fd, msg now)
         }
     }
 
-    printf("5\n");
+    //printf("5\n");
 }
 void register_user(int fd,char * name, char * password)
 {
