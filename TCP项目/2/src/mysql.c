@@ -231,6 +231,7 @@ int sql_is_friend_exist(const char *a, const char *b) {
     mysql_free_result(res);
     return exists;
 }
+//查询好友列表
 int sql_query_friend_list(int fd, const char *account) {
     char sql[256];
     // 注意把 user 改成正确的表名 users
@@ -274,33 +275,6 @@ int sql_query_friend_list(int fd, const char *account) {
     return 0;
 }
 
-// // 查询好友列表
-// int sql_query_friend_list(int fd, const char *account) {
-//     char sql[256];
-//     sprintf(sql, "SELECT b FROM user_friend WHERE a='%s'", account);
-//     if (mysql_query(mydb, sql) != 0) {
-//         fprintf(stderr, "查询好友列表失败: %s\n", mysql_error(mydb));
-//         return -1;
-//     }
-
-//     MYSQL_RES *res = mysql_store_result(mydb);
-//     if (!res) {
-//         fprintf(stderr, "获取好友列表失败: %s\n", mysql_error(mydb));
-//         return -1;
-//     }
-
-//     MYSQL_ROW row;
-//     msg friends = {0};
-//     friends.msgtype = MSG_FIU;
-//     printf("【%s 的好友列表】:\n", account);
-//     while ((row = mysql_fetch_row(res))) {
-//         printf("好友账号: %s\n", row[0]);
-//         strcpy(friends.msgdata, row[0]);
-//         send_msg(friends,fd); //返回好友消息
-//     }
-//     mysql_free_result(res);
-//     return 0;
-// }
 // 创建群
 int sql_create_qun(const char *qun_name, const char *qunzhu) {
     char sql[256];
@@ -319,6 +293,13 @@ int sql_create_qun(const char *qun_name, const char *qunzhu) {
     sprintf(sql, "INSERT INTO qun_list(qun_id, member, permission) VALUES(%d, '%s', 2)", qun_id, qunzhu);
     if (mysql_query(mydb, sql) != 0) {
         fprintf(stderr, "插入群成员失败: %s\n", mysql_error(mydb));
+
+        // 删除刚插入的群
+        sprintf(sql, "DELETE FROM qun WHERE id = %d", qun_id);
+        if (mysql_query(mydb, sql) != 0) {
+            fprintf(stderr, "回滚群失败: %s\n", mysql_error(mydb));
+        }
+
         return -1;
     }
 
@@ -421,10 +402,11 @@ int sql_dismiss_qun(int qun_id, const char *qunzhu) {
 }
 
 // 查询加入的所有群
-int sql_query_qun_list(const char *account) {
+int sql_query_qun_list(int fd, const char *account) {
     char sql[256];
-    sprintf(sql, 
-        "SELECT q.qun_id, q.qun_name FROM qun_list l "
+    sprintf(sql,
+        "SELECT q.qun_id, q.qun_name, l.permission, l.mute "
+        "FROM qun_list l "
         "JOIN qun q ON l.qun_id = q.qun_id "
         "WHERE l.member = '%s'", account);
 
@@ -440,14 +422,36 @@ int sql_query_qun_list(const char *account) {
     }
 
     MYSQL_ROW row;
-    printf("【%s 加入的群】:\n", account);
+    msg qun_msg = {0};
+    qun_msg.msgtype = MSG_FIQ;  // 群列表消息类型（你自己定义）
+
+    int index = 1;
     while ((row = mysql_fetch_row(res))) {
-        printf("群ID: %s, 群名: %s\n", row[0], row[1]);
+        const char *qun_id     = row[0];
+        const char *qun_name   = row[1];
+        const char *permission = row[2];
+        const char *mute       = row[3];
+
+        printf("%d. 群ID: %s, 群名: %s, 权限: %s\n",
+               index, qun_id, qun_name, permission);
+
+        // 群ID和群名
+        strncpy(qun_msg.account, qun_id, sizeof(qun_msg.account) - 1);
+        strncpy(qun_msg.selfname, qun_name, sizeof(qun_msg.selfname) - 1);
+
+        // msgdata: 权限#禁言#编号，例如："2#0#1"
+        snprintf(qun_msg.msgdata, sizeof(qun_msg.msgdata), "权限%s状态%s--第%d个群", permission, mute, index);
+
+        send_msg(qun_msg, fd);
+        index++;
     }
 
     mysql_free_result(res);
     return 0;
 }
+
+
+
 //查询群成员
 int sql_query_qun_members(int qun_id) {
     char sql[256];
@@ -540,5 +544,85 @@ int sql_get_mute_status(int qun_id, const char *account) {
     mysql_free_result(res);
     return status;
 }
+//是否是群成员
+int sql_is_qun_user(const char *account, int qun_id)
+{
+    char sql[256];
+    sprintf(sql, "SELECT 1 FROM qun_list WHERE qun_id = %d AND member = '%s' LIMIT 1", qun_id, account);
 
+    if (mysql_query(mydb, sql) != 0) {
+        fprintf(stderr, "判断群成员失败: %s\n", mysql_error(mydb));
+        return -1;  // 数据库错误
+    }
 
+    MYSQL_RES *res = mysql_store_result(mydb);
+    if (!res) {
+        fprintf(stderr, "获取查询结果失败: %s\n", mysql_error(mydb));
+        return -1;
+    }
+
+    int is_member = (mysql_num_rows(res) > 0) ? 0 : 1;
+    mysql_free_result(res);
+
+    return is_member;
+}
+//群发 
+void sql_send_qun_members(int qun_id, const char *account, const char *name, const char *data)
+{
+    char sql[256];
+    char qun_name[16] = {0}; 
+
+    // Step 1: 查询群名
+    sprintf(sql, "SELECT qun_name FROM qun WHERE qun_id = %d", qun_id);
+    if (mysql_query(mydb, sql) != 0) {
+        fprintf(stderr, "查询群名失败: %s\n", mysql_error(mydb));
+        return;
+    }
+
+    MYSQL_RES *res_qun = mysql_store_result(mydb);
+    if (!res_qun || mysql_num_rows(res_qun) == 0) {
+        fprintf(stderr, "群ID %d 不存在。\n", qun_id);
+        mysql_free_result(res_qun);
+        return;
+    }
+
+    MYSQL_ROW row_qun = mysql_fetch_row(res_qun);
+    strncpy(qun_name, row_qun[0], sizeof(qun_name) - 1);
+    mysql_free_result(res_qun);
+
+    // Step 2: 查询群成员
+    sprintf(sql, "SELECT member FROM qun_list WHERE qun_id = %d", qun_id);
+    if (mysql_query(mydb, sql) != 0) {
+        fprintf(stderr, "查询群成员失败: %s\n", mysql_error(mydb));
+        return;
+    }
+
+    MYSQL_RES *res = mysql_store_result(mydb);
+    if (!res) {
+        fprintf(stderr, "获取群成员失败: %s\n", mysql_error(mydb));
+        return;
+    }
+
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(res))) {
+        const char *target_account = row[0];
+
+        // 获取用户是否在线
+        sql_user u = sql_get_user_by_account(target_account);
+        if (u.fd == 0) continue;
+
+        // 构造消息
+        msg m = {0};
+        m.msgtype = MSG_ALL; // 群聊类型
+        strncpy(m.account, account, sizeof(m.account) - 1);      // 发送者账号
+        strncpy(m.selfname, name, sizeof(m.selfname) - 1);       // 发送者昵称
+        strncpy(m.msgdata, data, sizeof(m.msgdata) - 1);         // 消息内容
+        snprintf(m.other, sizeof(m.other), "%d%s", qun_id, qun_name); //可能越界
+
+        // 发送
+        send_msg(m, u.fd);
+        printf("已群发消息给：%s（fd=%d）\n", u.account, u.fd);
+    }
+
+    mysql_free_result(res);
+}

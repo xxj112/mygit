@@ -60,17 +60,19 @@ void two_menu(void)
     int num = 0;
     while(LG)
     {
-        printf("1. 私聊\n2. 群发\n3. 退出\n4. 注销\n");
-        printf("5. 加好友\n6. 删除好友\n7. 查询好友列表\n4. 注销\n");
+        printf("1. 私聊 2. 群发 3. 退出 4. 注销\n");
+        printf("5. 加好友 6. 删除好友 7. 查询好友列表\n");
+        printf("8. 创建群 9. 删除群 10. 查询加入的群\n");
+        printf("11. 加群 12. 退群 \n");
         scanf("%d",&num);
         switch (num) 
         {
             case 1: //私聊
                 Send_single();
                 break;
-            // case 2: //群发
-            //     threee_menu();
-            //     break;
+            case 2: //群发
+                Send_qun();
+                break;
             case 3: //退出
                 Lgout(); 
                 break;
@@ -85,7 +87,22 @@ void two_menu(void)
                 break;
             case 7: //好友列表
                 Find_user_list();
-                return;
+                break;
+             case 8: //创建群
+                Create_qun();
+                break;
+            case 9: //删除群
+                Delete_qun();
+                break;
+            case 10: //查询加入的群
+                Find_qun_list();
+                break;    
+            case 11: //加群
+                Add_qun();
+                break;
+            case 12: //退群
+                Exit_qun();
+                break;   
             default:
                 printf("Default case\n");
         }
@@ -130,11 +147,10 @@ void msg_handle(msg now)
             rec_delete_account(now.msgdata);
             break;
         case MSG_ALL: //群发
-            printf("收到群聊的消息%s：%s\n", now.selfname, now.msgdata);
+            rec_send_qun(now.account, now.selfname, now.msgdata, now.other);
             break;
         case MSG_ONE: //私聊
             rec_send_single(now.account, now.selfname, now.msgdata);
-            //printf("收到%s的消息：%s\n", now.selfname, now.msgdata);
             break;
         case MSG_INU: //
             rec_add_user(now.msgdata);
@@ -144,6 +160,21 @@ void msg_handle(msg now)
             break;
         case MSG_FIU:
             rec_find_user_list(now.account, now.selfname ,now.msgdata);
+            break;
+         case MSG_CRQ: //
+            rec_create_qun(now.msgdata);
+            break;
+        case MSG_DEQ:
+            rec_delete_qun(now.msgdata);
+            break;
+        case MSG_FIQ:
+            rec_find_qun_list(now.account, now.selfname ,now.msgdata);
+            break;
+        case MSG_INQ:
+            rec_add_qun(now.msgdata);
+            break;
+        case MSG_QEQ:
+            rec_exit_qun(now.msgdata);
             break;
         default:
             printf("收到内容：%s\n", now.msgdata);
@@ -269,7 +300,14 @@ void Send_single()
 }
 void rec_send_single(const char *account, const char *name, const char *data)
 {
-    printf("收到%s %s的私聊信息：%s\n", account, name, data);
+    if(strcmp(account, my_account) == 0)//发送方
+    {
+        printf("收到信息：%s\n", data);
+    }
+    else//接受方
+    {
+        printf("收到%s %s的私聊信息：%s\n", account, name, data);
+    }
 }
 
 void Add_user(void)
@@ -317,11 +355,114 @@ void rec_find_user_list(const char *account, const char *name, const char *data)
 {
     if(strcmp(data, "查询成功") == 0 || strcmp(data, "查询失败") == 0) // 结束语
     {
-       
+       printf("收到内容：%s\n", data);
     }
     else
     {
-         printf("第%s个好友----账号: %s ---- 昵称: %s\n", data, account, name);
+        printf("第%s个好友----账号: %s ---- 昵称: %s\n", data, account, name);
     }
     
+}
+
+void Create_qun(void)
+{
+    printf("请输入群名称：");
+    scanf("%s",sen_msg.msgdata);
+    sen_msg.msgtype = MSG_CRQ;
+    strcpy(sen_msg.account, my_account);
+    send_msg(sen_msg);
+    printf("任意键返回\n");
+    getchar();
+    getchar();
+}
+void rec_create_qun(const char *data)
+{
+    printf("收到内容：%s\n", data);
+}
+void Delete_qun(void)
+{
+    printf("请输入删除群的ID：");
+    scanf("%s",sen_msg.msgdata);
+    sen_msg.msgtype = MSG_DEQ;
+    strcpy(sen_msg.account, my_account);
+    send_msg(sen_msg);
+    printf("任意键返回\n");
+    getchar();
+    getchar();
+}
+void rec_delete_qun(const char *data)
+{
+    printf("收到内容：%s\n", data);
+}    
+void Find_qun_list(void)
+{
+    sen_msg.msgtype = MSG_FIQ;
+    strcpy(sen_msg.account, my_account);
+    send_msg(sen_msg);
+    printf("任意键返回\n");
+    getchar();
+    getchar();
+}
+void rec_find_qun_list(const char *account, const char *name, const char *data)
+{
+    if(strcmp(data, "查询成功") == 0 || strcmp(data, "查询失败") == 0) // 结束语
+    {
+       printf("收到内容：%s\n", data);
+    }
+    else
+    {
+        printf("群ID：%s 群名:%s %s\n", account, name, data);
+    }
+}
+
+void Add_qun(void)
+{
+    printf("请输入要加入群的ID：");
+    scanf("%s",sen_msg.msgdata);
+    sen_msg.msgtype = MSG_INQ;
+    strcpy(sen_msg.account, my_account);
+    send_msg(sen_msg);
+    printf("任意键返回\n");
+    getchar();
+    getchar();
+}
+void rec_add_qun(const char *data)
+{
+    printf("收到内容：%s\n", data);
+}
+void Exit_qun(void)
+{
+    printf("请输入要退出群的ID：");
+    scanf("%s",sen_msg.msgdata);
+    sen_msg.msgtype = MSG_QEQ;
+    strcpy(sen_msg.account, my_account);
+    send_msg(sen_msg);
+    printf("任意键返回\n");
+    getchar();
+    getchar();
+}
+void rec_exit_qun(const char *data)
+{
+    printf("收到内容：%s\n", data);
+}
+
+
+void Send_qun(void)
+{
+    printf("请输入发送的群的ID：");
+    scanf("%s",sen_msg.password);
+    printf("请输入发送信息：");
+    scanf("%s",sen_msg.msgdata);
+    sen_msg.msgtype = MSG_ALL;
+    strcpy(sen_msg.account, my_account);
+    strcpy(sen_msg.selfname, my_name);
+    send_msg(sen_msg);
+    printf("任意键返回\n");
+    getchar();
+    getchar();
+}
+void rec_send_qun(const char *account, const char *name, const char *data, const char *qun)
+{
+
+    printf("接收到群 %s %s %s: %s ",qun, account, name, data);
 }

@@ -52,9 +52,11 @@ int sql_create_qun(const char *qun_name, const char *qunzhu);
 int sql_join_qun(int qun_id, const char *account);
 int sql_dismiss_qun(int qun_id, const char *qunzhu);
 int sql_quit_qun(int qun_id, const char *account);
-int sql_query_qun_list(const char *account);
+int sql_query_qun_list(int fd, const char *account);
 int sql_query_qun_members(int qun_id);
 int sql_query_created_quns(const char *account); 
 int sql_get_mute_status(int qun_id, const char *account);
 int sql_set_mute(int qun_id, const char *account, int mute_flag);
+int sql_is_qun_user(const char *account, int qun_id);
+void sql_send_qun_members(int qun_id, const char *account, const char *name, const char *data);
 #endif 

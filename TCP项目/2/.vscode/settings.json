@@ -5,6 +5,9 @@
         "op.h": "c",
         "ser_op.h": "c",
         "time.h": "c",
-        "cli_op.h": "c"
+        "cli_op.h": "c",
+        "stdio.h": "c",
+        "unistd.h": "c",
+        "string.h": "c"
     }
 }

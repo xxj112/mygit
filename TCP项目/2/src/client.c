@@ -58,3 +58,4 @@ void *myfunc(void *arg) //线程负责接受消息
         msg_handle(rec_msg);
     }
 }
+

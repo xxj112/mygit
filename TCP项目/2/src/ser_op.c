@@ -33,35 +33,49 @@ void hand_msg(int fd,msg now)
             delete_user(fd, now.account);
             break;
         case MSG_ONE: // 私聊
-            send_one_user(fd, now.account, now.other, now.msgdata);
+            send_one_user(fd, now.account, now.selfname, now.other, now.msgdata);
             break;
-        // case MSG_ALL: // 群发
-        //     send_all_user(fd, now.account, now.msgdata);
-        //     break;
-        // case MSG_INQ: // 加入群（msgdata 传群ID）
-        //     join_qun(fd, now.account, atoi(now.msgdata));
-        //     break;
-        // case MSG_QEQ: // 退出群
-        //     quit_qun(fd, now.account, atoi(now.msgdata));
-        //     break;
-        // case MSG_DEQ: // 解散群（自己必须是群主）
-        //     dismiss_qun(fd, now.account, atoi(now.msgdata));
-        //     break;
+        case MSG_CRQ:   //建群
+            create_qun(fd, now.account, now.msgdata);
+            break;
+        case MSG_INQ: // 加入群（msgdata 传群ID）
+            join_qun(fd, now.account, atoi(now.msgdata));
+            break;
+        case MSG_QEQ: // 退出群
+            quit_qun(fd, now.account, atoi(now.msgdata));
+            break;
+        case MSG_DEQ: // 解散群（自己必须是群主）根据群id
+            dismiss_qun(fd, now.account, atoi(now.msgdata));
+            break;
+        case MSG_FIQ: // 查询加入的群列表
+            query_qun_list(fd, now.account);
+            break;
         case MSG_INU: // 添加好友（other为对方账号）
             add_friend(fd, now.account, now.other);
             break;
         case MSG_DEU: // 删除好友
             delete_friend(fd, now.account, now.other);
             break;
-        // case MSG_CRQ: // 创建群（msgdata 为群名称）
-        //     create_qun(fd, now.account, now.msgdata);
-        //     break;
         case MSG_FIU: // 查询好友列表
             query_friend_list(fd, now.account);
+
+        case MSG_ALL: // 群聊
+            send_qun_user(fd, now.account, now.selfname, now.msgdata, atoi(now.password));
             break;
-        // case MSG_FIQ: // 查询加入的群列表
-        //     query_qun_list(fd, now.account);
-        //     break;
+        case MSG_TQU: // 踢人
+            delete_qun_user(fd, now.account, now.other, atoi(now.password));
+            break;    
+        case MSG_SQM: // 设置群权限
+            set_qun_permission(fd, now.account, now.other, atoi(now.msgdata), atoi(now.password));
+            break;
+
+        case MSG_JIN: // 禁言
+            jin_qun_user(fd, now.account, now.other, atoi(now.password));
+            break;    
+        case MSG_JIE: // 解言
+            jie_qun_user(fd, now.account, now.other, atoi(now.password));
+            break;
+
         default:
             printf("收到未知消息类型: %d\n", now.msgtype);
             break;
@@ -268,9 +282,193 @@ void query_friend_list(int fd, const char *account)
     send_msg(now,fd); //返回消息
 }
 // 私聊 ：建立在好友功能之上，且好友得在线
-void send_one_user(int fd, const char *from, const char *to, const char *msg)
+void send_one_user(int fd, const char *from,const char *name, const char *to, const char *data)
 {
+    //用户是否存在
+    //用户是否在线
+    //用户是否是好友
+    //发送消息
+    msg now = {0};
+    now.msgtype = MSG_ONE; 
+    strcpy(now.account, from);
+    sql_user user = sql_get_user_by_account(to);
+    if(strcmp(to, user.account) != 0)
+    {
+        strcpy(now.msgdata, "用户不存在");
+    }
+    else 
+    {
+        if(user.fd == 0)
+        {
+            strcpy(now.msgdata, "用户不在线");
+        }
+        else
+        {
+            int ret = sql_is_friend(from, to);
+            if(ret != 0)
+            {
+                strcpy(now.msgdata, "不是好友");
+            }
+            else
+            {
+                //发送给接收方
+                msg fff = {0};
+                fff.msgtype = MSG_ONE; 
+                strcpy(fff.msgdata, data);
+                strcpy(fff.account, from);
+                strcpy(fff.selfname, name);
+                send_msg(fff,user.fd);
+                strcpy(now.msgdata, "发送成功");
+            }
+        }
+    }
+    //返回给发送方
+    send_msg(now,fd); //返回消息
+}
 
+//建群 群名字和群主都可以重复 但是有一个关键字（可以看成群账号） 一定不会重复，自动生存
+void create_qun(int fd, const char *account, const char *qun_name)
+{
+    msg now = {0};
+    now.msgtype = MSG_CRQ; 
+    //int sql_create_qun(const char *qun_name, const char *qunzhu) 
+    int ret = sql_create_qun(qun_name, account);
+    if(ret != 0)
+    {
+        strcpy(now.msgdata, "建群失败");
+    }
+    else
+    {
+        strcpy(now.msgdata, "建群成功");
+    }
+    send_msg(now,fd); //返回消息
+}
+void dismiss_qun(int fd, const char *account, int qun_id)
+{
+    msg now = {0};
+    now.msgtype = MSG_DEQ; 
+    //int sql_dismiss_qun(int qun_id, const char *qunzhu) 
+    int ret = sql_dismiss_qun(qun_id, account);
+    if(ret != 0)
+    {
+        strcpy(now.msgdata, "解散群失败");
+    }
+    else
+    {
+        strcpy(now.msgdata, "解散群成功");
+    }
+    send_msg(now,fd); //返回消息
+}
+void query_qun_list(int fd, const char *account)
+{
+    //结构限制，只能一个一个发送
+    msg now = {0};
+    now.msgtype = MSG_FIQ; 
+    int ret = sql_query_qun_list(fd, account);
+    if(ret != 0)
+    {
+        strcpy(now.msgdata, "查询失败");
+    }
+    else
+    {
+        strcpy(now.msgdata, "查询成功");
+    }
+    send_msg(now,fd); //返回消息
+}
+//加群
+void join_qun(int fd, const char *account, int qun_id)
+{
+    //int sql_join_qun(int qun_id, const char *account)
+    msg now = {0};
+    now.msgtype = MSG_INQ; 
+    int ret = sql_join_qun(qun_id, account);
+    if(ret != 0)
+    {
+        strcpy(now.msgdata, "加群失败");
+    }
+    else
+    {
+        strcpy(now.msgdata, "加群成功");
+    }
+    send_msg(now,fd); //返回消息
+}
+//退群
+void quit_qun(int fd, const char *account, int qun_id)
+{
+    //int sql_quit_qun(int qun_id, const char *account)
+    msg now = {0};
+    now.msgtype = MSG_QEQ; 
+    int ret = sql_quit_qun(qun_id, account);
+    if(ret != 0)
+    {
+        strcpy(now.msgdata, "退群失败");
+    }
+    else
+    {
+        strcpy(now.msgdata, "退群成功");
+    }
+    send_msg(now,fd); //返回消息
+}
+//群聊
+void send_qun_user(int fd, const char *from, const char *name, const char *data, int qun_id)
+{
+    //这里不判断是否存在群了，反正只有群成员可以发送
+    msg now = {0};
+    now.msgtype = MSG_ALL; 
+    //是否在群里
+    int ret = sql_is_qun_user(from, qun_id);
+    if(ret != 0)
+    {
+        strcpy(now.msgdata, "不是群成员");
+    }
+    else
+    {
+        strcpy(now.msgdata, "发送成功");
+        sql_send_qun_members(qun_id, from, name, data);
+        //发送所有在线成员，选获取在线成员表，再发送
+    }
+    send_msg(now,fd); //返回消息
+}
+void set_qun_permission(int fd, const char *a, const char *b, int permission, int qun_id)
+{
+    msg now = {0};
+    now.msgtype = MSG_SQM; 
+    //是否在群里
+    //
+    int ret = sql_is_qun_user(from, qun_id);
+    if(ret != 0)
+    {
+        strcpy(now.msgdata, "不是群成员");
+    }
+    else
+    {
+        strcpy(now.msgdata, "发送成功");
+        sql_send_qun_members(qun_id, from, name, data);
+        //发送所有在线成员，选获取在线成员表，再发送
+    }
+    send_msg(now,fd); //返回消息
+}
+
+void delete_qun_user(int fd, const char *a, const char *b, int qun_id)
+{
+    msg now = {0};
+    now.msgtype = MSG_TQU; 
+
+
+    send_msg(now,fd); //返回消息
+}
+
+void jin_qun_user(int fd, const char *a, const char *b, int qun_id)
+{
+    msg now = {0};
+    now.msgtype = MSG_JIN; 
+     send_msg(now,fd); //返回消息
+}
+void jie_qun_user(int fd, const char *a, const char *b, int qun_id)
+{
+    msg now = {0};
+    now.msgtype = MSG_JIE; 
+    send_msg(now,fd); //返回消息
 }
 
 // 将消息写入日志文件
@@ -295,77 +493,3 @@ void file_w(msg now)
 
     fclose(fp);
 }
-
-// void send_all_user(int fd, msg now)
-// {
-//     printf("send_all_user\n");
-//     pr_msg(now);
-//   //  printf("1\n");
-//     if(strcmp(now.other, "end") == 0) // 退出群聊
-//     {
-
-//     //printf("2\n");
-//         mysql_update_user_qun(now.account, 0);
-//     }
-//     else if(strcmp(now.other, "start") == 0) // 进入群聊
-//     {
-
-//     // printf("3\n");
-//         mysql_update_user_qun(now.account, 1);
-//     }
-//     else  //发送消息
-//     {
-
-//    // printf("4\n");
-//         int cnt = get_accounts_qun(); //获取所有群用户
-//         printf("cnt = %d", cnt);
-//         for(int i = 0; i < cnt; i++)
-//         {
-//             sql_user w = mysql_query_users(accounts[i]); 
-//             printf("Account = %s\n", accounts[i]);
-//             if(w.fd == fd) continue; // 自己跳过
-//             if(w.fd != 0) //在线 ，其实在群里一定在线，防止中途退出
-//             {
-//                 send_msg(now,w.fd); //发送信息
-//             }
-//         }
-//     }
-
-//     //printf("5\n");
-// }
-
-// void delete_user(int fd,char * account) //密码已经客户端判断过了,且能登陆账号一定存在
-// {
-//     msg rec = {0};
-//     mysql_delete_user(account);
-//     sql_user now = mysql_query_users(account);
-//     if(now.account[0] == '\0')
-//     strcpy(rec.msgdata, "注销成功");
-//     else strcpy(rec.msgdata, "注销失败");
-//     send_msg(rec,fd);
-// }
-// //void send_all_user(fd);
-// void send_one_user(int fd, msg now)
-// {
-//     // 查找目标用户
-//     sql_user target = mysql_query_users(now.other); // 根据账号 用户信息
-//     if(strcmp(target.account, now.other) != 0)
-//     {
-//         //用户不存在
-//         strcpy(now.msgdata, "用户不存在");
-//     }
-//     else if(target.fd == 0)
-//     {
-//         strcpy(now.msgdata, "用户不在线");
-//     }
-//     else
-//     {
-//         send_msg(now, target.fd);
-//         strcpy(now.msgdata, "发送成功");
-//     }
-//     send_msg(now, fd);
-// }
-// void lgout_user(int fd, char * account)//退出 把fd赋值为0，不是不在线
-// {
-//    mysql_update_user_status(account, 0);
-// }

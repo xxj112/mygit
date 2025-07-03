@@ -12,8 +12,7 @@ void login_user(int fd, const char *account, const char *password);
 void logout_user(int fd, const char *account);
 void delete_user(int fd, const char *account);
 
-void send_one_user(int fd, const char *from, const char *to, const char *msg);
-void send_all_user(int fd, const char *from, const char *msg);
+void send_one_user(int fd, const char *from, const char *name, const char *to, const char *data);
 
 void add_friend(int fd, const char *a, const char *b);
 void delete_friend(int fd, const char *a, const char *b);
@@ -26,5 +25,10 @@ void dismiss_qun(int fd, const char *account, int qun_id);
 void query_friend_list(int fd, const char *account);
 void query_qun_list(int fd, const char *account);
 
+void send_qun_user(int fd, const char *from, const char *name, const char *data, int qun_id);
+void delete_qun_user(int fd, const char *a, const char *b, int qun_id);
+void set_qun_permission(int fd, const char *a, const char *b, int permission, int qun_id);
+void jin_qun_user(int fd, const char *a, const char *b, int qun_id);
+void jie_qun_user(int fd, const char *a, const char *b, int qun_id);
 
 #endif  
