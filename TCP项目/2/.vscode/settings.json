@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "mysql.h": "c",
+        "share.h": "c",
+        "op.h": "c",
+        "ser_op.h": "c",
+        "time.h": "c",
+        "cli_op.h": "c"
+    }
+}
