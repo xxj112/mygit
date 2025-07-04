@@ -42,6 +42,11 @@ void rec_exit_qun(const char *data);
 void Send_qun(void);
 void rec_send_qun(const char *account, const char *name, const char *data, const char *qun);
 
+void Set_permission(void);
+void rec_set_permission(const char *data);
+void Set_jin_qun(void);
+void Set_jie_qun(void);
+void delete_qun_user(void);
 // void threee_menu(void); //群聊界面
 
 

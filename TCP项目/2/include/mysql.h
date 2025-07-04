@@ -59,4 +59,6 @@ int sql_get_mute_status(int qun_id, const char *account);
 int sql_set_mute(int qun_id, const char *account, int mute_flag);
 int sql_is_qun_user(const char *account, int qun_id);
 void sql_send_qun_members(int qun_id, const char *account, const char *name, const char *data);
+int sql_query_permission_quns(const char *account, int qun_id);
+int sql_set_permission_quns(const char *account,int permission,  int qun_id);
 #endif 

@@ -17,7 +17,8 @@ void pr_msg(msg now)
 void hand_msg(int fd,msg now)
 {
     //服务器每次收到消息，都追加到文本文件里面
-    file_w(now); 
+    log_request(now);
+
     switch (now.msgtype)
     {
         case MSG_REG: // 注册
@@ -68,14 +69,13 @@ void hand_msg(int fd,msg now)
         case MSG_SQM: // 设置群权限
             set_qun_permission(fd, now.account, now.other, atoi(now.msgdata), atoi(now.password));
             break;
-
-        case MSG_JIN: // 禁言
-            jin_qun_user(fd, now.account, now.other, atoi(now.password));
-            break;    
         case MSG_JIE: // 解言
             jie_qun_user(fd, now.account, now.other, atoi(now.password));
             break;
-
+        case MSG_JIN: // 禁言
+            jin_qun_user(fd, now.account, now.other, atoi(now.password));
+            break;    
+        
         default:
             printf("收到未知消息类型: %d\n", now.msgtype);
             break;
@@ -110,6 +110,7 @@ void register_user(int fd, const char *password, const char *name)
             strcpy(now.msgdata, "注册成功");
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 // 登陆账号
 void login_user(int fd, const char *account, const char *password)
@@ -155,6 +156,7 @@ void login_user(int fd, const char *account, const char *password)
         }
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 // 退出登陆
 void logout_user(int fd, const char *account)
@@ -171,6 +173,7 @@ void logout_user(int fd, const char *account)
         strcpy(now.msgdata, "退出成功");
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 // 注销账号
 void delete_user(int fd, const char *account)//密码已经客户端判断过了,且能登陆账号一定存在
@@ -189,6 +192,7 @@ void delete_user(int fd, const char *account)//密码已经客户端判断过了
     }
     pr_msg(now);
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 // 添加好友 a 添加 b
 void add_friend(int fd, const char *a, const char *b)
@@ -227,6 +231,7 @@ void add_friend(int fd, const char *a, const char *b)
         }
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 //删除好友
 void delete_friend(int fd, const char *a, const char *b)
@@ -263,6 +268,7 @@ void delete_friend(int fd, const char *a, const char *b)
         }
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 //返回好友列表
 void query_friend_list(int fd, const char *account)
@@ -280,6 +286,7 @@ void query_friend_list(int fd, const char *account)
         strcpy(now.msgdata, "查询成功");
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 // 私聊 ：建立在好友功能之上，且好友得在线
 void send_one_user(int fd, const char *from,const char *name, const char *to, const char *data)
@@ -324,6 +331,7 @@ void send_one_user(int fd, const char *from,const char *name, const char *to, co
     }
     //返回给发送方
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 
 //建群 群名字和群主都可以重复 但是有一个关键字（可以看成群账号） 一定不会重复，自动生存
@@ -342,6 +350,7 @@ void create_qun(int fd, const char *account, const char *qun_name)
         strcpy(now.msgdata, "建群成功");
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 void dismiss_qun(int fd, const char *account, int qun_id)
 {
@@ -358,6 +367,7 @@ void dismiss_qun(int fd, const char *account, int qun_id)
         strcpy(now.msgdata, "解散群成功");
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 void query_qun_list(int fd, const char *account)
 {
@@ -374,6 +384,7 @@ void query_qun_list(int fd, const char *account)
         strcpy(now.msgdata, "查询成功");
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 //加群
 void join_qun(int fd, const char *account, int qun_id)
@@ -391,6 +402,7 @@ void join_qun(int fd, const char *account, int qun_id)
         strcpy(now.msgdata, "加群成功");
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 //退群
 void quit_qun(int fd, const char *account, int qun_id)
@@ -408,6 +420,7 @@ void quit_qun(int fd, const char *account, int qun_id)
         strcpy(now.msgdata, "退群成功");
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 //群聊
 void send_qun_user(int fd, const char *from, const char *name, const char *data, int qun_id)
@@ -423,58 +436,208 @@ void send_qun_user(int fd, const char *from, const char *name, const char *data,
     }
     else
     {
-        strcpy(now.msgdata, "发送成功");
-        sql_send_qun_members(qun_id, from, name, data);
-        //发送所有在线成员，选获取在线成员表，再发送
+
+        //是否禁言int sql_get_mute_status(int qun_id, const char *account)
+        ret = sql_get_mute_status(qun_id, from);
+        if(ret == 0)
+        {
+            sql_send_qun_members(qun_id, from, name, data);
+            strcpy(now.msgdata, "发送成功");
+        }
+        else
+        {
+            strcpy(now.msgdata, "处于禁言状态");
+        }
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
+//权限设置 a 设置 b qun_id权限permission
 void set_qun_permission(int fd, const char *a, const char *b, int permission, int qun_id)
 {
     msg now = {0};
     now.msgtype = MSG_SQM; 
-    //是否在群里
-    //
-    int ret = sql_is_qun_user(from, qun_id);
-    if(ret != 0)
+    //是否在群里int sql_is_qun_user(const char *account, int qun_id)
+    int rea = sql_is_qun_user(a, qun_id);
+    int reb = sql_is_qun_user(b, qun_id);
+    if(rea != 0 || reb != 0)
     {
         strcpy(now.msgdata, "不是群成员");
     }
     else
     {
-        strcpy(now.msgdata, "发送成功");
-        sql_send_qun_members(qun_id, from, name, data);
-        //发送所有在线成员，选获取在线成员表，再发送
+        // 权限判断int sql_query_permission_quns(const char *account, int qun_id)
+        rea = sql_query_permission_quns(a, qun_id);
+        reb = sql_query_permission_quns(b, qun_id);
+        if(rea == -1 || reb == -1)
+        {
+            strcpy(now.msgdata, "查询失败");
+           /// return ;
+        }
+        else
+        {
+            if(rea > reb && permission <= rea && permission < 2)
+            {
+                //设置群权限int sql_set_permission_quns(const char *account,int permission,  int qun_id)
+                reb = sql_set_permission_quns(b, permission, qun_id);
+                if(reb == 0)
+                {
+                    strcpy(now.msgdata, "设置成功");
+                }
+                else
+                {
+                    strcpy(now.msgdata, "设置失败");
+                }
+            }
+            else
+            {
+                strcpy(now.msgdata, "权限不够");
+            }
+        }
     }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 
 void delete_qun_user(int fd, const char *a, const char *b, int qun_id)
 {
     msg now = {0};
     now.msgtype = MSG_TQU; 
-
+    int rea = sql_is_qun_user(a, qun_id);
+    int reb = sql_is_qun_user(b, qun_id);
+    if(rea != 0 || reb != 0)
+    {
+        strcpy(now.msgdata, "不是群成员");
+    }
+    else
+    {
+        // 权限判断int sql_query_permission_quns(const char *account, int qun_id)
+        rea = sql_query_permission_quns(a, qun_id);
+        reb = sql_query_permission_quns(b, qun_id);
+        if(rea == -1 || reb == -1)
+        {
+            strcpy(now.msgdata, "查询失败");
+        }
+        else
+        {
+            if(rea > reb )
+            {
+                //踢人int sql_quit_qun(int qun_id, const char *account) 
+                reb = sql_quit_qun(qun_id, b);
+                if(reb == 0)
+                {
+                    strcpy(now.msgdata, "踢人成功");
+                }
+                else
+                {
+                    strcpy(now.msgdata, "踢人失败");
+                }
+            }
+            else
+            {
+                strcpy(now.msgdata, "权限不够");
+            }
+        }
+    }
 
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 
 void jin_qun_user(int fd, const char *a, const char *b, int qun_id)
 {
     msg now = {0};
     now.msgtype = MSG_JIN; 
-     send_msg(now,fd); //返回消息
+
+    int rea = sql_is_qun_user(a, qun_id);
+    int reb = sql_is_qun_user(b, qun_id);
+    if(rea != 0 || reb != 0)
+    {
+        strcpy(now.msgdata, "不是群成员");
+    }
+    else
+    {
+        // 权限判断int sql_query_permission_quns(const char *account, int qun_id)
+        rea = sql_query_permission_quns(a, qun_id);
+        reb = sql_query_permission_quns(b, qun_id);
+        if(rea == -1 || reb == -1)
+        {
+            strcpy(now.msgdata, "查询失败");
+        }
+        else
+        {
+            if(rea > reb )
+            {
+                //设置int sql_set_mute(int qun_id, const char *account, int mute_flag)
+                reb = sql_set_mute(qun_id, b, 1);
+                if(reb == 0)
+                {
+                    strcpy(now.msgdata, "设置成功");
+                }
+                else
+                {
+                    strcpy(now.msgdata, "设置失败");
+                }
+            }
+            else
+            {
+                strcpy(now.msgdata, "权限不够");
+            }
+        }
+    }
+
+
+    send_msg(now,fd); //返回消息
+    log_response(now);
 }
 void jie_qun_user(int fd, const char *a, const char *b, int qun_id)
 {
     msg now = {0};
     now.msgtype = MSG_JIE; 
+    int rea = sql_is_qun_user(a, qun_id);
+    int reb = sql_is_qun_user(b, qun_id);
+    if(rea != 0 || reb != 0)
+    {
+        strcpy(now.msgdata, "不是群成员");
+    }
+    else
+    {
+        // 权限判断int sql_query_permission_quns(const char *account, int qun_id)
+        rea = sql_query_permission_quns(a, qun_id);
+        reb = sql_query_permission_quns(b, qun_id);
+        if(rea == -1 || reb == -1)
+        {
+            strcpy(now.msgdata, "查询失败");
+        }
+        else
+        {
+            if(rea > reb )
+            {
+                //设置int sql_set_mute(int qun_id, const char *account, int mute_flag)
+                reb = sql_set_mute(qun_id, b, 0);
+                if(reb == 0)
+                {
+                    strcpy(now.msgdata, "设置成功");
+                }
+                else
+                {
+                    strcpy(now.msgdata, "设置失败");
+                }
+            }
+            else
+            {
+                strcpy(now.msgdata, "权限不够");
+            }
+        }
+    }
     send_msg(now,fd); //返回消息
+    log_response(now);
 }
 
 // 将消息写入日志文件
-// 这里还没有对消息详细处理，有时间可以把消息分分类
 // 还可以增加消息删除，和查看
-void file_w(msg now)
+//收到结果
+void log_request(msg now)
 {
     FILE *fp = fopen("chat_log.txt", "a"); // 以追加模式打开
     if (fp == NULL) {
@@ -489,7 +652,137 @@ void file_w(msg now)
             tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
             tm->tm_hour, tm->tm_min, tm->tm_sec);
     // 写入聊天内容
-    fprintf(fp, "类型：[%d] 内容：[%s] 对 [%s] 说：%s\n\n", now.msgtype, now.account, now.other, now.msgdata);
+
+   switch (now.msgtype) {
+    case MSG_REG:
+        fprintf(fp, "[注册] 账号: %s 姓名: %s 密码: %s\n", now.account, now.selfname, now.password);
+        break;
+    case MSG_LOG:
+        fprintf(fp, "[登录] 账号: %s 密码: %s\n", now.account, now.password);
+        break;
+    case MSG_OUT:
+        fprintf(fp, "[退出] 账号: %s\n", now.account);
+        break;
+    case MSG_DEL:
+        fprintf(fp, "[注销] 账号: %s\n", now.account);
+        break;
+    case MSG_ONE:
+        fprintf(fp, "[私聊] 发送者: %s (%s) . 接收者: %s 消息: %s\n", now.account, now.selfname, now.other, now.msgdata);
+        break;
+    case MSG_ALL:
+        fprintf(fp, "[群聊] 群成员: %s (%s) . 群消息: %s\n", now.account, now.selfname, now.msgdata);
+        break;
+    case MSG_INU:
+        fprintf(fp, "[加好友] %s . %s\n", now.account, now.other);
+        break;
+    case MSG_DEU:
+        fprintf(fp, "[删除好友] %s . %s\n", now.account, now.other);
+        break;
+    case MSG_CRQ:
+        fprintf(fp, "[建群] 群主: %s 群名: %s\n", now.account, now.msgdata);
+        break;
+    case MSG_INQ:
+        fprintf(fp, "[加群] 账号: %s 群ID: %s\n", now.account, now.other);
+        break;
+    case MSG_QEQ:
+        fprintf(fp, "[退群] 账号: %s 群ID: %s\n", now.account, now.other);
+        break;
+    case MSG_DEQ:
+        fprintf(fp, "[解散群] 群主: %s 群ID: %s\n", now.account, now.other);
+        break;
+    case MSG_FIU:
+        fprintf(fp, "[查询好友列表] 账号: %s\n", now.account);
+        break;
+    case MSG_FIQ:
+        fprintf(fp, "[查询群列表] 账号: %s\n", now.account);
+        break;
+    case MSG_TQU:
+        fprintf(fp, "[踢人] 管理员: %s 踢出: %s 群ID: %s\n", now.account, now.other, now.msgdata);
+        break;
+    case MSG_SQM:
+        fprintf(fp, "[设置群权限] 操作者: %s 目标: %s 权限: %s 群ID: %s\n", now.account, now.other, now.password, now.msgdata);
+        break;
+    case MSG_JIN:
+        fprintf(fp, "[禁言] 操作者: %s 目标: %s 群ID: %s\n", now.account, now.other, now.msgdata);
+        break;
+    case MSG_JIE:
+        fprintf(fp, "[解禁] 操作者: %s 目标: %s 群ID: %s\n", now.account, now.other, now.msgdata);
+        break;
+    default:
+        fprintf(fp, "[未知消息] 类型: %d\n", now.msgtype);
+        break;
+    }
 
     fclose(fp);
+}
+
+//返回结果
+void log_response(msg now) {
+    FILE *fp = fopen("chat_log.txt", "a"); // 以追加模式打开
+    if (fp == NULL) {
+        perror("打开日志文件失败\n");
+        return;
+    }
+
+    switch (now.msgtype) {
+    case MSG_REG:
+        fprintf(fp, "[注册结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_LOG:
+        fprintf(fp, "[登录结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_OUT:
+        fprintf(fp, "[退出登录结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_DEL:
+        fprintf(fp, "[注销结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_ONE:
+        fprintf(fp, "[私聊结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_ALL:
+        fprintf(fp, "[群聊结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_INU:
+        fprintf(fp, "[添加好友结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_DEU:
+        fprintf(fp, "[删除好友结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_FIU:
+        fprintf(fp, "[查询好友列表结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_CRQ:
+        fprintf(fp, "[建群结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_INQ:
+        fprintf(fp, "[加群结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_QEQ:
+        fprintf(fp, "[退群结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_DEQ:
+        fprintf(fp, "[解散群结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_FIQ:
+        fprintf(fp, "[查询群列表结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_TQU:
+        fprintf(fp, "[踢人结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_SQM:
+        fprintf(fp, "[设置群权限结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_JIE:
+        fprintf(fp, "[解除禁言结果] 返回信息: %s\n", now.msgdata);
+        break;
+    case MSG_JIN:
+        fprintf(fp, "[禁言结果] 返回信息: %s\n", now.msgdata);
+        break;
+    default:
+        fprintf(fp, "[未知类型结果] 返回信息: %s\n", now.msgdata);
+        break;
+    }
+
+     fclose(fp);
 }

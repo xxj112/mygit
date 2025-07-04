@@ -12,7 +12,7 @@
 #include <pthread.h>
 #include <sys/epoll.h>
 
-#define SERVER_IP "192.168.0.9"
+#define SERVER_IP "192.168.138.60"
 // 端口号用短整形 2字节  0~65535 
 // 不建议使用10000以下的有肯呢个别占用
 #define SERVER_RORT 8848

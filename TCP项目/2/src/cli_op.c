@@ -63,7 +63,8 @@ void two_menu(void)
         printf("1. 私聊 2. 群发 3. 退出 4. 注销\n");
         printf("5. 加好友 6. 删除好友 7. 查询好友列表\n");
         printf("8. 创建群 9. 删除群 10. 查询加入的群\n");
-        printf("11. 加群 12. 退群 \n");
+        printf("11. 加群 12. 退群 13. 设置群权限 \n");
+        printf("14. 禁言 15. 解禁 16. 踢人 \n");
         scanf("%d",&num);
         switch (num) 
         {
@@ -103,6 +104,18 @@ void two_menu(void)
             case 12: //退群
                 Exit_qun();
                 break;   
+            case 13: //设置群权限
+                Set_permission();
+                break;    
+            case 14: //禁言
+                Set_jin_qun();
+                break;
+            case 15: //解禁
+                Set_jie_qun();
+                break; 
+            case 16: //踢人
+                delete_qun_user();
+                break; 
             default:
                 printf("Default case\n");
         }
@@ -175,6 +188,18 @@ void msg_handle(msg now)
             break;
         case MSG_QEQ:
             rec_exit_qun(now.msgdata);
+            break;
+        case MSG_SQM: //这四个操作，都之返回信息
+           // rec_delete_qun(now.msgdata);
+          //  break;
+        case MSG_JIN:
+          
+         //   break;
+        case MSG_JIE:
+            
+          //  break;
+        case MSG_TQU:
+            rec_set_permission(now.msgdata);
             break;
         default:
             printf("收到内容：%s\n", now.msgdata);
@@ -463,6 +488,65 @@ void Send_qun(void)
 }
 void rec_send_qun(const char *account, const char *name, const char *data, const char *qun)
 {
-
     printf("接收到群 %s %s %s: %s ",qun, account, name, data);
+}
+void Set_permission(void)
+{
+    printf("请输入发送的群的ID：");
+    scanf("%s",sen_msg.password);
+    printf("请输入要更改权限用户的帐号：");
+    scanf("%s",sen_msg.other);
+    printf("请输入要更改的权限：");
+    scanf("%s",sen_msg.msgdata);
+
+    sen_msg.msgtype = MSG_SQM;
+    strcpy(sen_msg.account, my_account);
+  //  strcpy(sen_msg.selfname, my_name);
+    send_msg(sen_msg);
+    printf("任意键返回\n");
+    getchar();
+    getchar();
+}
+void rec_set_permission(const char *data)
+{
+    printf("返回信息：%s",data);
+}
+void Set_jin_qun(void)
+{
+    printf("请输入操作的群的ID：");
+    scanf("%s",sen_msg.password);
+    printf("请输入要禁言成员的帐号：");
+    scanf("%s",sen_msg.other);
+    sen_msg.msgtype = MSG_JIN;
+    strcpy(sen_msg.account, my_account);
+    send_msg(sen_msg);
+    printf("任意键返回\n");
+    getchar();
+    getchar();
+}
+void Set_jie_qun(void)
+{
+    printf("请输入操作的群的ID：");
+    scanf("%s",sen_msg.password);
+    printf("请输入要解禁成员的帐号：");
+    scanf("%s",sen_msg.other);
+    sen_msg.msgtype = MSG_JIE;
+    strcpy(sen_msg.account, my_account);
+    send_msg(sen_msg);
+    printf("任意键返回\n");
+    getchar();
+    getchar();
+}
+void delete_qun_user(void)
+{
+    printf("请输入操作的群的ID：");
+    scanf("%s",sen_msg.password);
+    printf("请输入要删除成员的帐号：");
+    scanf("%s",sen_msg.other);
+    sen_msg.msgtype = MSG_TQU;
+    strcpy(sen_msg.account, my_account);
+    send_msg(sen_msg);
+    printf("任意键返回\n");
+    getchar();
+    getchar();
 }

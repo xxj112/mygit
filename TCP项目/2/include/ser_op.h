@@ -5,7 +5,8 @@
 void pr_msg(msg now);
 void send_msg(msg now,int fd);
 
-void file_w(msg now);
+void log_request(msg now);
+void log_response(msg now); 
 
 void register_user(int fd, const char *password, const char *name);
 void login_user(int fd, const char *account, const char *password);

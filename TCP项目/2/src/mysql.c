@@ -505,7 +505,62 @@ int sql_query_created_quns(const char *account) {
     mysql_free_result(res);
     return 0;
 }
+//查询权限
+int sql_query_permission_quns(const char *account, int qun_id)
+{
 
+    // 构造 SQL 查询语句
+    char sql[256];
+    snprintf(sql, sizeof(sql),
+             "SELECT permission FROM qun_list WHERE qun_id=%d AND member='%s'",
+             qun_id, account);
+
+    // 执行 SQL 查询
+    if (mysql_query(mydb, sql) != 0) {
+        fprintf(stderr, "MySQL 查询出错: %s\n", mysql_error(mydb));
+        return -1;
+    }
+
+    // 获取查询结果
+    MYSQL_RES *res = mysql_store_result(mydb);
+    if (!res) {
+        fprintf(stderr, "MySQL 结果存储出错: %s\n", mysql_error(mydb));
+        return -1;
+    }
+
+    // 获取一行结果（应该只有一行）
+    MYSQL_ROW row = mysql_fetch_row(res);
+    int permission = -1;
+
+    if (row && row[0]) {
+        permission = atoi(row[0]);  // 将结果转换为整数
+    }
+
+    mysql_free_result(res);  // 释放结果集资源
+    return permission;       // 返回权限值或-1
+}
+//设置权限
+int sql_set_permission_quns(const char *account,int permission,  int qun_id)
+{
+    // 构造 SQL 更新语句
+    char sql[256];
+    snprintf(sql, sizeof(sql),
+             "UPDATE qun_list SET permission=%d WHERE qun_id=%d AND member='%s'",
+             permission, qun_id, account);
+
+    // 执行 SQL
+    if (mysql_query(mydb, sql) != 0) {
+        fprintf(stderr, "MySQL 修改权限出错: %s\n", mysql_error(mydb));
+        return -1;
+    }
+
+    // 检查是否有行被修改（如无则说明找不到该成员）
+    if (mysql_affected_rows(mydb) == 0) {
+        return -1;  // 没有更新任何行
+    }
+
+    return 0;  // 成功
+}
 //设置禁言状态，只是对应群的禁言状态
 int sql_set_mute(int qun_id, const char *account, int mute_flag) {
     char sql[256];
